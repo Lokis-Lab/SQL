@@ -1,0 +1,73 @@
+        -- Converted from KQL to MySQL (heuristic conversion)
+        -- Date: 2025-09-13 00:40:46 UTC
+        -- Source file: KQL-main/ASR/ASR_BlockedEvents_Detail_7d.kql
+        --
+        -- Original KQL (for reference):
+        -- -- // -----------------------------------------------------------------------------
+-- // Query Name: ASR_BlockedEvents_Detail_7d
+-- // Description:
+-- //   Retrieves detailed Attack Surface Reduction (ASR) rule enforcement events 
+-- //   from the DeviceEvents table over the past 7 days. Only blocked (non-audit) 
+-- //   events are included by filtering on AdditionalFields.IsAudit == "false".
+-- //
+-- // Logic:
+-- //   • Filters DeviceEvents for ActionTypes starting with "Asr"
+-- //   • Parses AdditionalFields JSON for RuleId, RuleName, BlockReason, PolicyId
+-- //   • Categorizes events into functional groups:
+-- //       - Email: executable content in email / comm apps
+-- //       - Script: obfuscated or malicious scripts
+-- //       - WMI: persistence or PsExec-WMI usage
+-- //       - OfficeApp: suspicious Office child processes, macros, injection
+-- //       - ThirdPartyApp: Adobe Reader child processes
+-- //       - WindowsCredentials: LSASS credential theft attempts
+-- //       - PolymorphicThreats: ransomware, untrusted executables, vulnerable drivers
+-- //       - Other: uncategorized ASR actions
+-- //
+-- // Use cases:
+-- //   • Investigate individual ASR blocks across devices
+-- //   • Identify which accounts, processes, and files triggered ASR enforcement
+-- //   • Support incident response with detailed forensic context
+-- //
+-- // Output fields:
+-- //   Timestamp, Category, ActionType, DeviceName, ReportId, InitiatingProcessAccountName, 
+-- //   InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, FolderPath, SHA1,
+-- //   RuleId, RuleName, BlockReason, PolicyId, IsAudit
+-- //
+-- // Results are sorted by most recent events first.
+-- // -----------------------------------------------------------------------------
+
+
+-- DeviceEvents
+-- | where Timestamp > ago(7d)
+-- | where ActionType startswith "Asr"
+-- | extend Parsed = parse_json(AdditionalFields)
+-- | where Parsed.IsAudit == "false"
+-- | extend Category = case(
+--         ActionType in ("AsrExecutableEmailContentBlocked", "AsrOfficeCommAppChildProcessBlocked"), "Email",
+--         ActionType in ("AsrObfuscatedScriptBlocked", "AsrScriptExecutableDownloadBlocked"), "Script",
+--         ActionType in ("AsrPersistenceThroughWmiBlocked", "AsrPsexecWmiChildProcessBlocked"), "WMI",
+--         ActionType in ("AsrOfficeChildProcessBlocked", "AsrOfficeMacroWin32ApiCallsBlocked",
+--                        "AsrExecutableOfficeContentBlocked", "AsrOfficeProcessInjectionBlocked"), "OfficeApp",
+--         ActionType == "AsrAdobeReaderChildProcessBlocked", "ThirdPartyApp",
+--         ActionType == "AsrLsassCredentialTheftBlocked", "WindowsCredentials",
+--         ActionType in ("AsrUntrustedExecutableBlocked", "AsrUntrustedUsbProcessBlocked",
+--                        "AsrRansomwareBlocked", "AsrVulnerableSignedDriverBlocked"), "PolymorphicThreats",
+--         "Other"
+--     ),
+--     RuleId      = tostring(Parsed.RuleId),
+--     RuleName    = tostring(Parsed.RuleName),
+--     BlockReason = tostring(Parsed.BlockReason),
+--     PolicyId    = tostring(Parsed.PolicyId),
+--     IsAudit     = tostring(Parsed.IsAudit)
+-- | project Timestamp, Category, ActionType, DeviceName, ReportId,
+--           InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine,
+--           FileName, FolderPath, SHA1, RuleId, RuleName, BlockReason, PolicyId, IsAudit
+-- | order by Timestamp desc
+        --
+        -- Notes:
+        -- - Review the FROM table names and JSON field access (use JSON_EXTRACT for JSON columns).
+        -- - Replace /* <TABLE_OR_SUBQUERY> */ with the correct table or subquery if needed.
+        -- - Regex/contains translations use LIKE/REGEXP; adjust for performance as needed.
+        -- - Time windows: ago(7d) -> NOW() - INTERVAL 7 DAY, etc.
+        --
+SELECT * FROM DeviceEvents WHERE Timestamp > NOW() - INTERVAL 7 DAY AND ActionType LIKE 'Asr%' AND Parsed.IsAudit == "FALSE";

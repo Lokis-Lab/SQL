@@ -1,0 +1,64 @@
+        -- Converted from KQL to MySQL (heuristic conversion)
+        -- Date: 2025-09-13 00:40:46 UTC
+        -- Source file: KQL-main/ASR/ASR_BlockedEvents_Summary_7d.kql
+        --
+        -- Original KQL (for reference):
+        -- -- // -----------------------------------------------------------------------------
+-- // Query Name: ASR_BlockedEvents_Summary_7d
+-- // Description:
+-- //   Summarizes Attack Surface Reduction (ASR) rule enforcement events from the 
+-- //   DeviceEvents table over the past 7 days. Only blocked (non-audit) events 
+-- //   are included by parsing AdditionalFields.IsAudit == "false".
+-- //
+-- // Logic:
+-- //   • Filters DeviceEvents for ActionTypes starting with "Asr"
+-- //   • Parses AdditionalFields JSON to exclude audit-only events
+-- //   • Groups blocked events by rule category and counts occurrences per day:
+-- //       - Email: executable content in email / comm apps
+-- //       - Script: obfuscated/malicious script activity
+-- //       - WMI: persistence / PsExec-WMI usage
+-- //       - OfficeApp: suspicious Office child processes, macros, injection
+-- //       - ThirdPartyApp: Adobe Reader child processes
+-- //       - WindowsCredentials: LSASS credential theft attempts
+-- //       - PolymorphicThreats: ransomware, unsigned/USB processes, vulnerable drivers
+-- //
+-- // Use cases:
+-- //   • Identify trends in ASR rule enforcement across the estate
+-- //   • Visualize which categories of ASR rules are actively blocking threats
+-- //   • Assess effectiveness of ASR policy configuration
+-- //
+-- // Output:
+-- //   • Daily counts of ASR blocks by rule category, displayed as a column chart
+-- //
+-- // Visualization:
+-- //   • `render columnchart` provides a timeline view of ASR activity
+-- // -----------------------------------------------------------------------------
+
+-- DeviceEvents
+-- | where Timestamp > ago(7d)
+-- | where ActionType startswith "Asr"
+-- | extend Parsed = parse_json(AdditionalFields)
+-- | where Parsed.IsAudit == "false"   // only enforced (blocked) events
+-- | summarize
+--     Email              = countif(ActionType in ("AsrExecutableEmailContentBlocked", "AsrOfficeCommAppChildProcessBlocked")),
+--     Script             = countif(ActionType in ("AsrObfuscatedScriptBlocked", "AsrScriptExecutableDownloadBlocked")),
+--     WMI                = countif(ActionType in ("AsrPersistenceThroughWmiBlocked", "AsrPsexecWmiChildProcessBlocked")),
+--     OfficeApp          = countif(ActionType in ("AsrOfficeChildProcessBlocked", "AsrOfficeMacroWin32ApiCallsBlocked", "AsrExecutableOfficeContentBlocked", "AsrOfficeProcessInjectionBlocked")),
+--     ThirdPartyApp      = countif(ActionType == "AsrAdobeReaderChildProcessBlocked"),
+--     WindowsCredentials = countif(ActionType == "AsrLsassCredentialTheftBlocked"),
+--     PolymorphicThreats = countif(ActionType in ("AsrUntrustedExecutableBlocked", "AsrUntrustedUsbProcessBlocked", "AsrRansomwareBlocked", "AsrVulnerableSignedDriverBlocked"))
+--   by bin(Timestamp, 1d)
+-- | render columnchart
+        --
+        -- Notes:
+        -- - Review the FROM table names and JSON field access (use JSON_EXTRACT for JSON columns).
+        -- - Replace /* <TABLE_OR_SUBQUERY> */ with the correct table or subquery if needed.
+        -- - Regex/contains translations use LIKE/REGEXP; adjust for performance as needed.
+        -- - Time windows: ago(7d) -> NOW() - INTERVAL 7 DAY, etc.
+        --
+SELECT * FROM DeviceEvents WHERE Timestamp > NOW() - INTERVAL 7 DAY AND ActionType LIKE 'Asr%' AND Parsed.IsAudit == "FALSE"   // only enforced (blocked) events;
+
+-- Aggregation equivalent (edit TABLE_OR_SUBQUERY as needed):
+SELECT bin(Timestamp, 1d)
+| render columnchart, countif(ActionType in ("AsrExecutableEmailContentBlocked" AS Email, "AsrOfficeCommAppChildProcessBlocked")), countif(ActionType in ("AsrObfuscatedScriptBlocked" AS Script, "AsrScriptExecutableDownloadBlocked")), countif(ActionType in ("AsrPersistenceThroughWmiBlocked" AS WMI, "AsrPsexecWmiChildProcessBlocked")), countif(ActionType in ("AsrOfficeChildProcessBlocked" AS OfficeApp, "AsrOfficeMacroWin32ApiCallsBlocked", "AsrExecutableOfficeContentBlocked", "AsrOfficeProcessInjectionBlocked")), countif(ActionType == "AsrAdobeReaderChildProcessBlocked") AS ThirdPartyApp, countif(ActionType == "AsrLsassCredentialTheftBlocked") AS WindowsCredentials, countif(ActionType in ("AsrUntrustedExecutableBlocked" AS PolymorphicThreats, "AsrUntrustedUsbProcessBlocked", "AsrRansomwareBlocked", "AsrVulnerableSignedDriverBlocked")) FROM /* <TABLE_OR_SUBQUERY> */ GROUP BY bin(Timestamp, 1d)
+| render columnchart;

@@ -1,0 +1,28 @@
+        -- Converted from KQL to MySQL (heuristic conversion)
+        -- Date: 2025-09-13 00:40:46 UTC
+        -- Source file: KQL-main/ASR/ASR_FileName_Search_7d.kql
+        --
+        -- Original KQL (for reference):
+        -- -- // Title: ASR FileName Search (7d)
+-- // Purpose: Search for Attack Surface Reduction (ASR) blocks involving specific file names
+-- // Scope: Windows 10/11, Server 2016+
+-- // Tables: DeviceEvents
+-- // Tunables:
+-- //   - Time range: change `ago(7d)` as needed
+-- //   - File filters: update the `FileName in~ (...)` list
+-- // Author: Lokis-Lab  |  License: MIT
+-- // Last Updated: 2025-09-10
+
+-- DeviceEvents
+-- | where Timestamp > ago(7d)
+-- | where ActionType startswith "Asr"
+-- | where FileName in~ ("example.exe", "anotherprocess.exe")
+-- | project Timestamp, DeviceName, FileName, ActionType, InitiatingProcessFileName, AdditionalFields
+        --
+        -- Notes:
+        -- - Review the FROM table names and JSON field access (use JSON_EXTRACT for JSON columns).
+        -- - Replace /* <TABLE_OR_SUBQUERY> */ with the correct table or subquery if needed.
+        -- - Regex/contains translations use LIKE/REGEXP; adjust for performance as needed.
+        -- - Time windows: ago(7d) -> NOW() - INTERVAL 7 DAY, etc.
+        --
+SELECT * FROM DeviceEvents WHERE Timestamp > NOW() - INTERVAL 7 DAY AND ActionType LIKE 'Asr%' AND FileName in~ ("example.exe", "anotherprocess.exe");
