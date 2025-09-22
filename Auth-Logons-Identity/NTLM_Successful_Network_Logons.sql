@@ -1,0 +1,51 @@
+        -- Converted from KQL to MySQL (heuristic conversion)
+        -- Date: 2025-09-13 00:40:46 UTC
+        -- Source file: KQL-main/Auth-Logons-Identity/NTLM_Successful_Network_Logons.kql
+        --
+        -- Original KQL (for reference):
+        -- -- // -----------------------------------------------------------------------------
+-- // Query Name: NTLM_NetworkLogons_NoDomain_Success
+-- // Description:
+-- //   Identifies successful network logons that are likely using NTLM authentication,
+-- //   based on missing domain information and other filtering criteria.
+-- //
+-- //   Filtering applied:
+-- //     - LogonType == "Network"
+-- //     - DeviceName does not contain common prefixes ("ip-", "ep-", "it", "id", "inf")
+-- //     - Excludes machine accounts (AccountName ending in "$")
+-- //     - RemoteIP must be present (indicates a remote login)
+-- //     - ActionType == "LogonSuccess"
+-- //     - AccountDomain is empty (suggests NTLM was used)
+-- //
+-- // Use cases:
+-- //   - Detect devices and accounts authenticating over the network with NTLM
+-- //   - Investigate potential legacy authentication still in use
+-- //   - Highlight remote logon activity that may warrant deeper review
+-- //
+-- // Output fields:
+-- //   Timestamp, AccountName, DeviceName, RemoteIP, AccountDomain, LogonType, ActionType
+-- //
+-- // Results are sorted by most recent logons first.
+-- // -----------------------------------------------------------------------------
+
+-- DeviceLogonEvents
+-- | where LogonType == "Network"
+-- | where DeviceName !contains "ip-" 
+--        and DeviceName !contains "ep-" 
+--        and DeviceName !contains "it" 
+--        and DeviceName !contains "id" 
+--        and DeviceName !contains "inf"
+-- | where not(AccountName endswith "$")                  // Exclude machine accounts ending in $
+-- | where isnotempty(RemoteIP)                           // Remote login = more likely NTLM
+-- | where ActionType == "LogonSuccess"                   // Focus on successful logins
+-- | where isempty(AccountDomain)                         // No domain info = likely NTLM
+-- | project Timestamp, AccountName, DeviceName, RemoteIP, AccountDomain, LogonType, ActionType
+-- | order by Timestamp desc
+        --
+        -- Notes:
+        -- - Review the FROM table names and JSON field access (use JSON_EXTRACT for JSON columns).
+        -- - Replace /* <TABLE_OR_SUBQUERY> */ with the correct table or subquery if needed.
+        -- - Regex/contains translations use LIKE/REGEXP; adjust for performance as needed.
+        -- - Time windows: ago(7d) -> NOW() - INTERVAL 7 DAY, etc.
+        --
+SELECT * FROM DeviceLogonEvents WHERE LogonType == "Network" AND DeviceName NOT LIKE '%ip-%' AND not(AccountName LIKE '%$')                  // Exclude machine accounts ending in $ AND isnotempty(RemoteIP)                           // Remote login = more likely NTLM AND ActionType == "LogonSuccess"                   // Focus on successful logins AND isempty(AccountDomain)                         // No domain info = likely NTLM;

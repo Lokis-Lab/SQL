@@ -1,0 +1,99 @@
+        -- Converted from KQL to MySQL (heuristic conversion)
+        -- Date: 2025-09-13 00:40:46 UTC
+        -- Source file: KQL-main/Auth-Logons-Identity/AD_Sensitive_Group_Modifications.kql
+        --
+        -- Original KQL (for reference):
+        -- -- // -----------------------------------------------------------------------------
+-- // Query Name: AD_Tier0_GroupMembership_Changes
+-- // Description:
+-- //   Detects additions or removals of accounts in highly sensitive 
+-- //   Active Directory groups (commonly referred to as Tier 0 groups). 
+-- //   Examples include Domain Admins, Schema Admins, Enterprise Admins, 
+-- //   and other protected groups critical to domain security.
+-- //
+-- // Requirements:
+-- //   • Defender for Identity must be deployed (relies on IdentityDirectoryEvents)
+-- //   • Run from Microsoft 365 Defender advanced hunting (https://security.microsoft.com) 
+-- //     or via the M365D hunting API
+-- //
+-- // Logic:
+-- //   • Collects group membership change events from IdentityDirectoryEvents
+-- //   • Classifies actions as "Added Account" or "Removed Account"
+-- //   • Filters to a defined set of Tier 0 groups (e.g., Domain Admins, Enterprise Admins)
+-- //   • Projects relevant details such as timestamp, actor, target object, and target group
+-- //
+-- // Use cases:
+-- //   • Detect unauthorized or suspicious changes to Tier 0 group memberships
+-- //   • Investigate potential privilege escalation or domain compromise attempts
+-- //   • Monitor adherence to privileged access security best practices
+-- //
+-- // References:
+-- //   • Privileged Access Model (Microsoft Security Compass):
+-- //     https://docs.microsoft.com/security/compass/privileged-access-access-model#evolution-from-the-legacy-ad-tier-model
+-- //   • Protected Accounts and Groups in Active Directory:
+-- //     https://docs.microsoft.com/windows-server/identity/ad-ds/plan/security-best-practices/appendix-c--protected-accounts-and-groups-in-active-directory
+-- //   • Original hunting query inspiration:
+-- //     https://github.com/Azure/Azure-Sentinel/tree/master/Hunting%20Queries/Microsoft%20365%20Defender/Credential%20Access/Active%20Directory%20Sensitive%20Group%20Modifications.yaml
+-- //
+-- // Output fields:
+-- //   Timestamp, ActionType, ActivityType, TargetType, ActorUpn, TargetObject, 
+-- //   TargetAccountUpn, TargetGroup
+-- //
+-- // Note:
+-- //   • If configuring as a detection rule in M365D, include ReportId and AccountSid 
+-- //     in the projected columns.
+-- // -----------------------------------------------------------------------------
+
+-- let Events = materialize (
+-- IdentityDirectoryEvents
+-- | where ActionType == 'Group Membership changed'
+-- | extend ActivityType = iff(isnotempty(tostring(AdditionalFields['TO.GROUP'])),"Added Account", "Removed Account")
+-- | where isnotempty(AccountSid)
+-- );
+-- let Tier0Adds = (
+-- Events
+-- | where ActivityType == "Added Account"
+-- | extend TargetGroup = tostring(AdditionalFields['TO.GROUP'])
+-- | extend TargetObject = iff(isempty(tostring(AdditionalFields['TARGET_OBJECT.USER'])), tostring(AdditionalFields['TARGET_OBJECT.GROUP']), tostring(AdditionalFields['TARGET_OBJECT.USER']))
+-- | extend TargetType = iff(isempty(tostring(AdditionalFields['TARGET_OBJECT.USER'])), "Security Group", "User Account")
+-- //| extend TargetObject = AdditionalFields['TARGET_OBJECT.USER']
+-- );
+-- let Tier0Removes = (
+-- Events
+-- | where ActivityType == "Removed Account"
+-- | extend TargetGroup = tostring(AdditionalFields['FROM.GROUP'])
+-- | extend TargetObject = iff(isempty(tostring(AdditionalFields['TARGET_OBJECT.USER'])),tostring(AdditionalFields['TARGET_OBJECT.GROUP']), tostring(AdditionalFields['TARGET_OBJECT.USER']))
+-- | extend TargetType = iff(isempty(tostring(AdditionalFields['TARGET_OBJECT.USER'])), "Security Group", "User Account")
+-- );
+-- let Tier0Groups = datatable(TargetGroup:string)
+-- [
+-- 'Enterprise Admins',
+-- 'Domain Admins',
+-- 'Domain Controllers'
+-- 'Administrators',
+-- 'Enterprise Key Admins',
+-- 'Account Operators',
+-- 'Organization Management',
+-- 'Backup Operators',
+-- 'RTCDomainServerAdmins',
+-- 'ENTERPRISE DOMAIN CONTROLLERS',
+-- 'Cert Publishers',
+-- 'Schema Admins',
+-- 'DnsAdmins',
+-- 'Exchange Recipient Administrators',
+-- 'Replicator',
+-- 'Read-Only Domain Controllers',
+-- 'Print Operators'
+-- ];
+-- Tier0Groups
+-- | join (union Tier0Adds, Tier0Removes) on TargetGroup
+-- | project Timestamp, ActionType, ActivityType,TargetType, ActorUpn=AccountUpn, TargetObject, TargetAccountUpn, TargetGroup
+-- // If you are setting up a detection rule in M365D, you'll need to add ReportId and AccountSid to the projected columns
+        --
+        -- Notes:
+        -- - Review the FROM table names and JSON field access (use JSON_EXTRACT for JSON columns).
+        -- - Replace /* <TABLE_OR_SUBQUERY> */ with the correct table or subquery if needed.
+        -- - Regex/contains translations use LIKE/REGEXP; adjust for performance as needed.
+        -- - Time windows: ago(7d) -> NOW() - INTERVAL 7 DAY, etc.
+        --
+SELECT * FROM IdentityDirectoryEvents WHERE ActionType == 'Group Membership changed' AND isnotempty(AccountSid) AND ActivityType == "Added Account" AND ActivityType == "Removed Account";
