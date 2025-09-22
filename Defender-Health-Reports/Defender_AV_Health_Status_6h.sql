@@ -1,0 +1,80 @@
+        -- Converted from KQL to MySQL (heuristic conversion)
+        -- Date: 2025-09-13 00:40:46 UTC
+        -- Source file: KQL-main/Defender-Health-Reports/Defender_AV_Health_Status_6h.kql
+        --
+        -- Original KQL (for reference):
+        -- -- // Title: Defender AV Health - Signature, Engine, Platform Status (6h)
+-- // Purpose: Provide a unified health report on Microsoft Defender AV mode, signature, engine, and platform update status
+-- // Scope: Windows 10/11, Server 2016+
+-- // Tables: DeviceTvmInfoGathering
+-- // Tunables:
+-- //   - Time range: `ago(6h)` can be adjusted
+-- //   - Staleness threshold: currently set to 8 days
+-- // Author: Lokis-Lab  |  License: MIT
+-- // Last Updated: 2025-09-10
+
+-- DeviceTvmInfoGathering
+-- | extend
+--     DataRefreshTimestamp = Timestamp,
+--     AvModeRaw = tostring(AdditionalFields.AvMode),
+--     AvIsSignatureUpToDateRaw = tostring(AdditionalFields.AvIsSignatureUptoDate),
+--     AvIsPlatformUpToDateRaw = tostring(AdditionalFields.AvIsPlatformUptodate),
+--     AvIsEngineUpToDateRaw = tostring(AdditionalFields.AvIsEngineUptodate),
+--     AvSignatureDataRefreshTime = todatetime(AdditionalFields.AvSignatureDataRefreshTime),
+--     AvSignaturePublishTime = todatetime(AdditionalFields.AvSignaturePublishTime),
+--     AvSignatureVersion = tostring(AdditionalFields.AvSignatureVersion),
+--     AvEngineVersion = tostring(AdditionalFields.AvEngineVersion),
+--     AvPlatformVersion = tostring(AdditionalFields.AvPlatformVersion)
+-- | extend
+--     AvMode = case(
+--         AvModeRaw == "0", "Active",
+--         AvModeRaw == "1", "Passive",
+--         AvModeRaw == "2", "Disabled",
+--         AvModeRaw == "4", "EDR Blocked",
+--         AvModeRaw == "5", "PassiveAudit",
+--         "Unknown"
+--     )
+-- | extend
+--     AvIsSignatureUpToDate = iif(
+--         isnull(AvIsSignatureUpToDateRaw) or isnull(AvSignatureDataRefreshTime) or isnull(AvSignaturePublishTime)
+--             or (AvIsSignatureUpToDateRaw == "true" and AvSignaturePublishTime < ago(8d)),
+--         "Unknown",
+--         AvIsSignatureUpToDateRaw
+--     ),
+--     AvIsEngineUpToDate = iif(
+--         isnull(AvIsEngineUpToDateRaw) or isnull(AvSignatureDataRefreshTime) or isnull(AvSignaturePublishTime)
+--             or AvSignatureDataRefreshTime < ago(8d) or AvSignaturePublishTime < ago(8d),
+--         "Unknown",
+--         AvIsEngineUpToDateRaw
+--     ),
+--     AvIsPlatformUpToDate = iif(
+--         isnull(AvIsPlatformUpToDateRaw) or isnull(AvSignatureDataRefreshTime) or isnull(AvSignaturePublishTime)
+--             or AvSignatureDataRefreshTime < ago(8d) or AvSignaturePublishTime < ago(8d),
+--         "Unknown",
+--         AvIsPlatformUpToDateRaw
+--     )
+-- | where DataRefreshTimestamp > ago(6h)
+-- | project
+--     DeviceId,
+--     DeviceName,
+--     DataRefreshTimestamp,
+--     OSPlatform,
+--     AvMode,
+--     AvSignatureVersion,
+--     AvIsSignatureUpToDate,
+--     AvEngineVersion,
+--     AvIsEngineUpToDate,
+--     AvPlatformVersion,
+--     AvIsPlatformUpToDate,
+--     AvSignaturePublishTime,
+--     AvSignatureDataRefreshTime
+-- | order by DeviceName asc
+-- | limit 10000
+        --
+        -- Notes:
+        -- - Review the FROM table names and JSON field access (use JSON_EXTRACT for JSON columns).
+        -- - Replace /* <TABLE_OR_SUBQUERY> */ with the correct table or subquery if needed.
+        -- - Regex/contains translations use LIKE/REGEXP; adjust for performance as needed.
+        -- - Time windows: ago(7d) -> NOW() - INTERVAL 7 DAY, etc.
+        --
+SELECT * FROM DeviceTvmInfoGathering WHERE DataRefreshTimestamp > NOW() - INTERVAL 6 HOUR;

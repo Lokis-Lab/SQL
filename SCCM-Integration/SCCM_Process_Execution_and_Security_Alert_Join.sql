@@ -1,0 +1,61 @@
+        -- Converted from KQL to MySQL (heuristic conversion)
+        -- Date: 2025-09-13 00:40:46 UTC
+        -- Source file: KQL-main/SCCM-Integration/SCCM_Process_Execution_and_Security_Alert_Join.kql
+        --
+        -- Original KQL (for reference):
+        -- -- // -----------------------------------------------------------------------------
+-- // Query Name: SCCM_ProcessExecutions_and_AlertCorrelation_30d
+-- // Description:
+-- //   This query has two parts:
+-- //
+-- //   1. Lists execution events of core SCCM/MECM processes 
+-- //      (smsexec.exe, sitecomp.exe, smswriter.exe, cmupdate.exe, smssqlbkup.exe, ccmexec.exe)
+-- //      in the last 30 days, including command line, initiating process, and account.
+-- //
+-- //   2. Correlates devices where those processes ran with any Defender alerts
+-- //      raised on the same device in the last 30 days.
+-- //      (Alerts are pulled by joining AlertEvidence and AlertInfo on AlertId,
+-- //       since there is no DeviceAlertEvents table in Advanced Hunting.)
+-- //      Note: This is device-level correlation — alerts may not align exactly in time 
+-- //      with the process event unless you add a time filter (e.g., ±15 minutes).
+-- //
+-- // Use cases:
+-- //   - Identify SCCM/MECM servers or clients that executed core ConfigMgr processes
+-- //     and also triggered Defender alerts within the last 30 days.
+-- //   - Useful for spotting suspicious activity around ConfigMgr infrastructure,
+-- //     or for focusing investigations on SCCM-related systems flagged by Defender.
+-- //
+-- // Output fields:
+-- //   Part 1: Timestamp, DeviceName, FileName, ProcessCommandLine, InitiatingProcessFileName, AccountName
+-- //   Part 2: Adds AlertTimestamp, AlertName, Severity, Category, DetectionSource, ServiceSource
+-- // -----------------------------------------------------------------------------
+
+
+-- // Part 1 — SCCM/MECM core process executions in last 30d
+-- DeviceProcessEvents
+-- | where Timestamp > ago(30d)
+-- | where FileName in~ ("smsexec.exe","sitecomp.exe","smswriter.exe","cmupdate.exe","smssqlbkup.exe","ccmexec.exe")
+-- | project Timestamp, DeviceName, FileName, ProcessCommandLine, InitiatingProcessFileName, AccountName
+
+-- // Part 2 — Devices running those processes that also have Defender alerts (device-level correlation, last 30d)
+-- DeviceProcessEvents
+-- | where FileName in~ ("smsexec.exe","sitecomp.exe","smswriter.exe","cmupdate.exe","smssqlbkup.exe","ccmexec.exe")
+-- | join kind=inner (
+--     AlertEvidence
+--     | where Timestamp > ago(30d) and isnotempty(DeviceId)
+--     | project AlertId, DeviceId
+--     | join kind=inner (
+--         AlertInfo
+--         | where Timestamp > ago(30d)
+--         | project AlertId, AlertTimestamp=Timestamp, AlertName=Title, Severity, Category, DetectionSource, ServiceSource
+--     ) on AlertId
+--     | project DeviceId, AlertTimestamp, AlertName, Severity, Category, DetectionSource, ServiceSource
+-- ) on DeviceId
+        --
+        -- Notes:
+        -- - Review the FROM table names and JSON field access (use JSON_EXTRACT for JSON columns).
+        -- - Replace /* <TABLE_OR_SUBQUERY> */ with the correct table or subquery if needed.
+        -- - Regex/contains translations use LIKE/REGEXP; adjust for performance as needed.
+        -- - Time windows: ago(7d) -> NOW() - INTERVAL 7 DAY, etc.
+        --
+SELECT * FROM DeviceProcessEvents WHERE Timestamp > NOW() - INTERVAL 30 DAY AND FileName in~ ("smsexec.exe","sitecomp.exe","smswriter.exe","cmupdate.exe","smssqlbkup.exe","ccmexec.exe") AND FileName in~ ("smsexec.exe","sitecomp.exe","smswriter.exe","cmupdate.exe","smssqlbkup.exe","ccmexec.exe") AND Timestamp > NOW() - INTERVAL 30 DAY and isnotempty(DeviceId) AND Timestamp > NOW() - INTERVAL 30 DAY;

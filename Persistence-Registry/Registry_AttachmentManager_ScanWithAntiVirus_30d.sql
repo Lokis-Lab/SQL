@@ -1,0 +1,28 @@
+        -- Converted from KQL to MySQL (heuristic conversion)
+        -- Date: 2025-09-13 00:40:46 UTC
+        -- Source file: KQL-main/Persistence-Registry/Registry_AttachmentManager_ScanWithAntiVirus_30d.kql
+        --
+        -- Original KQL (for reference):
+        -- -- // Title: Registry - Attachment Manager ScanWithAntiVirus (30d)
+-- // Purpose: Detect modifications to the ScanWithAntiVirus registry flag under Attachment Manager policies
+-- // Scope: Windows 10/11, Server 2016+
+-- // Tables: DeviceRegistryEvents
+-- // Tunables:
+-- //   - Time range: change `ago(30d)` as needed
+-- //   - Registry path: currently scoped to Attachment Manager key
+-- // Author: Lokis-Lab  |  License: MIT
+-- // Last Updated: 2025-09-10
+
+-- DeviceRegistryEvents
+-- | where Timestamp > ago(30d)
+-- | where RegistryKey endswith @"\Software\Microsoft\Windows\CurrentVersion\Policies\Attachments"
+-- | where RegistryValueName == "ScanWithAntiVirus"
+-- | project Timestamp, DeviceName, RegistryKey, RegistryValueName, RegistryValueData, ActionType, InitiatingProcessFileName
+        --
+        -- Notes:
+        -- - Review the FROM table names and JSON field access (use JSON_EXTRACT for JSON columns).
+        -- - Replace /* <TABLE_OR_SUBQUERY> */ with the correct table or subquery if needed.
+        -- - Regex/contains translations use LIKE/REGEXP; adjust for performance as needed.
+        -- - Time windows: ago(7d) -> NOW() - INTERVAL 7 DAY, etc.
+        --
+SELECT * FROM DeviceRegistryEvents WHERE Timestamp > NOW() - INTERVAL 30 DAY AND RegistryKey endswith @"\Software\Microsoft\Windows\CurrentVersion\Policies\Attachments" AND RegistryValueName == "ScanWithAntiVirus";

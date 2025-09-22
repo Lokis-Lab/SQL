@@ -1,0 +1,27 @@
+        -- Converted from KQL to MySQL (heuristic conversion)
+        -- Date: 2025-09-13 00:40:46 UTC
+        -- Source file: KQL-main/Persistence-Registry/Registry_Service_Modifications.kql
+        --
+        -- Original KQL (for reference):
+        -- -- // Title: Registry Service Modifications
+-- // Purpose: Detect registry value sets within the Services registry hive
+-- // Scope: Windows 10/11, Server 2016+
+-- // Tables: DeviceRegistryEvents
+-- // Tunables:
+-- //   - Scope can be expanded to specific service names or subkeys
+-- // Author: Lokis-Lab  |  License: MIT
+-- // Last Updated: 2025-09-10
+
+-- DeviceRegistryEvents
+-- | where ActionType == "RegistryValueSet"
+-- | where RegistryKey contains "Services"
+-- | project Timestamp, DeviceName, RegistryKey, RegistryValueName, RegistryValueData, AccountName
+-- | order by Timestamp desc
+        --
+        -- Notes:
+        -- - Review the FROM table names and JSON field access (use JSON_EXTRACT for JSON columns).
+        -- - Replace /* <TABLE_OR_SUBQUERY> */ with the correct table or subquery if needed.
+        -- - Regex/contains translations use LIKE/REGEXP; adjust for performance as needed.
+        -- - Time windows: ago(7d) -> NOW() - INTERVAL 7 DAY, etc.
+        --
+SELECT * FROM DeviceRegistryEvents WHERE ActionType == "RegistryValueSet" AND RegistryKey LIKE '%Services%';

@@ -1,0 +1,61 @@
+        -- Converted from KQL to MySQL (heuristic conversion)
+        -- Date: 2025-09-13 00:40:46 UTC
+        -- Source file: KQL-main/SCCM-Integration/SCCM_Process_AlertTimeAligned_15m_30d.kql
+        --
+        -- Original KQL (for reference):
+        -- -- // -----------------------------------------------------------------------------
+-- // Query Name: SCCM_Process_AlertTimeAligned_15m_30d
+-- // Description:
+-- //   This query looks for execution of core SCCM/MECM processes 
+-- //   (e.g., smsexec.exe, ccmexec.exe) on devices in the last 30 days,
+-- //   and correlates them with any Defender alerts on the same device
+-- //   that occurred within ±15 minutes of the process event.
+-- // 
+-- // Use case:
+-- //   - Identify whether SCCM infrastructure processes are linked to alerts 
+-- //     (e.g., potential abuse, compromised site servers).
+-- //   - Helps distinguish normal ConfigMgr activity from suspicious or
+-- //     malicious behavior happening around the same time.
+-- // 
+-- // Tables used:
+-- //   - DeviceProcessEvents: process execution telemetry
+-- //   - AlertEvidence + AlertInfo: Defender alert metadata and evidence
+-- // 
+-- // Output fields:
+-- //   ProcessTimestamp, AlertTimestamp, DeviceName, FileName, ProcessCommandLine,
+-- //   InitiatingProcessFileName, AccountName, AlertName, Severity, Category,
+-- //   DetectionSource, ServiceSource
+-- // 
+-- // Results are ordered by most recent process events.
+-- // -----------------------------------------------------------------------------
+
+
+-- DeviceProcessEvents
+-- | where Timestamp > ago(30d)
+-- | where FileName in~ ("smsexec.exe","sitecomp.exe","smswriter.exe","cmupdate.exe","smssqlbkup.exe","ccmexec.exe")
+-- | project ProcessTimestamp=Timestamp, DeviceId, DeviceName, FileName, ProcessCommandLine,
+--           InitiatingProcessFileName, AccountName
+-- | join kind=innerunique (
+--     AlertEvidence
+--     | where Timestamp > ago(30d) and isnotempty(DeviceId)
+--     | project AlertId, DeviceId
+--     | join kind=inner (
+--         AlertInfo
+--         | where Timestamp > ago(30d)
+--         | project AlertId, AlertTimestamp=Timestamp, AlertName=Title,
+--                   Severity, Category, DetectionSource, ServiceSource
+--     ) on AlertId
+--     | project DeviceId, AlertTimestamp, AlertName, Severity, Category, DetectionSource, ServiceSource
+-- ) on DeviceId
+-- | where AlertTimestamp >= ProcessTimestamp - 15m and AlertTimestamp <= ProcessTimestamp + 15m
+-- | project ProcessTimestamp, AlertTimestamp, DeviceName, FileName, ProcessCommandLine,
+--           InitiatingProcessFileName, AccountName, AlertName, Severity, Category, DetectionSource, ServiceSource
+-- | order by ProcessTimestamp desc
+        --
+        -- Notes:
+        -- - Review the FROM table names and JSON field access (use JSON_EXTRACT for JSON columns).
+        -- - Replace /* <TABLE_OR_SUBQUERY> */ with the correct table or subquery if needed.
+        -- - Regex/contains translations use LIKE/REGEXP; adjust for performance as needed.
+        -- - Time windows: ago(7d) -> NOW() - INTERVAL 7 DAY, etc.
+        --
+SELECT * FROM DeviceProcessEvents WHERE Timestamp > NOW() - INTERVAL 30 DAY AND FileName in~ ("smsexec.exe","sitecomp.exe","smswriter.exe","cmupdate.exe","smssqlbkup.exe","ccmexec.exe") AND Timestamp > NOW() - INTERVAL 30 DAY and isnotempty(DeviceId) AND Timestamp > NOW() - INTERVAL 30 DAY AND AlertTimestamp >= ProcessTimestamp - 15m and AlertTimestamp <= ProcessTimestamp + 15m;

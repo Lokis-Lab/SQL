@@ -1,0 +1,26 @@
+        -- Converted from KQL to MySQL (heuristic conversion)
+        -- Date: 2025-09-13 00:40:46 UTC
+        -- Source file: KQL-main/Persistence-Services/Process_ServiceName_CommandLine.kql
+        --
+        -- Original KQL (for reference):
+        -- -- // Title: Process Creation with "ServiceName" Argument
+-- // Purpose: Identify processes that include "ServiceName" in their command line (possible service manipulation)
+-- // Scope: Windows 10/11, Server 2016+
+-- // Tables: DeviceProcessEvents
+-- // Tunables:
+-- //   - Update search term ("ServiceName") if attacker tradecraft changes
+-- // Author: Lokis-Lab  |  License: MIT
+-- // Last Updated: 2025-09-10
+
+-- DeviceProcessEvents
+-- | where ProcessCommandLine contains "ServiceName"
+-- | project Timestamp, DeviceName, FileName, ProcessCommandLine, AccountName
+-- | order by Timestamp desc
+        --
+        -- Notes:
+        -- - Review the FROM table names and JSON field access (use JSON_EXTRACT for JSON columns).
+        -- - Replace /* <TABLE_OR_SUBQUERY> */ with the correct table or subquery if needed.
+        -- - Regex/contains translations use LIKE/REGEXP; adjust for performance as needed.
+        -- - Time windows: ago(7d) -> NOW() - INTERVAL 7 DAY, etc.
+        --
+SELECT * FROM DeviceProcessEvents WHERE ProcessCommandLine LIKE '%ServiceName%';

@@ -1,0 +1,72 @@
+        -- Converted from KQL to MySQL (heuristic conversion)
+        -- Date: 2025-09-13 00:40:46 UTC
+        -- Source file: KQL-main/TVM-KEV-Vulns/CISA_Top_Vulns_2019_2023.kql
+        --
+        -- Original KQL (for reference):
+        -- -- // This will be depricated as they no longer do the yearly release. Looking into another method based off this. 
+-- // This advanced hunting query detects CISA Alerts for the Top Routinely Exploited Vulnerabilities (2019-2023).
+-- // Sources: 
+-- // - 2019: https://www.cisa.gov/news-events/cybersecurity-advisories/aa20-133a
+-- // - 2020: https://www.cisa.gov/news-events/cybersecurity-advisories/aa21-209a
+-- // - 2021: https://www.cisa.gov/news-events/cybersecurity-advisories/aa22-117a
+-- // - 2022: https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-215a
+-- // - 2023: https://www.cisa.gov/news-events/cybersecurity-advisories/aa24-317a
+-- //
+-- // This query checks devices against the known exploited CVEs and provides insights into affected endpoints.
+
+-- let CISAVULNS= dynamic([
+--     "CVE-2019-19781", // Citrix Application Delivery Controller (ADC) and Gateway - Arbitrary code execution
+--     "CVE-2019-11510", // Pulse Secure Pulse Connect Secure - Arbitrary file reading
+--     "CVE-2019-11580", // Atlassian Crowd - Remote code execution
+--     "CVE-2019-18935", // Progress Telerik UI for ASP.NET AJAX - Code execution
+--     "CVE-2019-0604",  // Microsoft SharePoint - Remote code execution
+--     "CVE-2019-3396",  // Atlassian Confluence Server - Remote code execution
+--     "CVE-2019-5591",  // Fortinet FortiGate - Default configuration vulnerability
+--     "CVE-2020-0688",  // Microsoft Exchange Server - Remote code execution
+--     "CVE-2020-1472",  // Netlogon (ZeroLogon) - Elevation of privilege
+--     "CVE-2020-5902",  // F5 BIG-IP Traffic Management User Interface (TMUI) - Remote code execution
+--     "CVE-2020-15505", // MobileIron Mobile Device Management - Remote code execution
+--     "CVE-2020-12812", // Fortinet FortiOS - Improper authentication
+--     "CVE-2020-0787",  // Microsoft Windows - Elevation of privilege
+--     "CVE-2021-44228", // Log4Shell - Apache Log4j - Remote code execution
+--     "CVE-2021-40539", // Zoho ManageEngine AD SelfService Plus - Remote code execution
+--     "CVE-2021-34523", // ProxyShell - Microsoft Exchange Server - Elevation of privilege
+--     "CVE-2021-34473", // ProxyShell - Microsoft Exchange Server - Remote code execution
+--     "CVE-2021-31207", // ProxyShell - Microsoft Exchange Server - Security feature bypass
+--     "CVE-2021-27065", // ProxyLogon - Microsoft Exchange Server - Remote code execution
+--     "CVE-2021-26858", // ProxyLogon - Microsoft Exchange Server - Remote code execution
+--     "CVE-2021-26857", // ProxyLogon - Microsoft Exchange Server - Remote code execution
+--     "CVE-2021-26855", // ProxyLogon - Microsoft Exchange Server - Remote code execution
+--     "CVE-2021-26084", // Atlassian Confluence Server and Data Center - Arbitrary code execution
+--     "CVE-2021-21972", // VMware vSphere Client - Remote code execution
+--     "CVE-2022-22954", // VMware Workspace ONE Access and Identity Manager - Remote code execution
+--     "CVE-2022-22960", // VMware Workspace ONE Access, Identity Manager, and vRealize Automation - Privilege escalation
+--     "CVE-2022-1388",  // F5 BIG-IP - Authentication bypass
+--     "CVE-2022-30190", // Microsoft Support Diagnostic Tool (MSDT) - Remote code execution
+--     "CVE-2022-26134", // Atlassian Confluence Server and Data Center - Remote code execution
+--     "CVE-2023-3519",  // Citrix NetScaler ADC and NetScaler Gateway - Code Injection
+--     "CVE-2023-4966",  // Citrix NetScaler ADC and NetScaler Gateway - Session token leakage
+--     "CVE-2023-20198", // Cisco IOS XE Web UI - Unauthorized access
+--     "CVE-2023-20273", // Cisco IOS XE - Privilege escalation
+--     "CVE-2023-27997", // Fortinet FortiOS and FortiProxy SSL-VPN - Remote code execution
+--     "CVE-2023-34362", // Progress MOVEit Transfer - SQL injection leading to remote code execution
+--     "CVE-2023-22515", // Atlassian Confluence Data Center and Server - Improper input validation leading to remote code execution
+--     "CVE-2023-2868",  // Barracuda Networks Email Security Gateway (ESG) Appliance - Remote command injection
+--     "CVE-2022-47966", // Zoho ManageEngine - Unauthenticated remote code execution
+--     "CVE-2023-27350", // PaperCut MF/NG - Authentication bypass leading to remote code execution
+--     "CVE-2023-42793", // JetBrains TeamCity - Authentication bypass
+--     "CVE-2023-23397", // Microsoft Outlook - Privilege escalation
+--     "CVE-2023-49103"  // ownCloud - Information disclosure
+-- ]);
+-- DeviceTvmSoftwareVulnerabilitiesKB
+-- | where CveId in(CISAVULNS)
+-- | join DeviceTvmSoftwareVulnerabilities on CveId
+-- | project-away CveId1, VulnerabilitySeverityLevel1, AffectedSoftware
+        --
+        -- Notes:
+        -- - Review the FROM table names and JSON field access (use JSON_EXTRACT for JSON columns).
+        -- - Replace /* <TABLE_OR_SUBQUERY> */ with the correct table or subquery if needed.
+        -- - Regex/contains translations use LIKE/REGEXP; adjust for performance as needed.
+        -- - Time windows: ago(7d) -> NOW() - INTERVAL 7 DAY, etc.
+        --
+SELECT * FROM DeviceTvmSoftwareVulnerabilitiesKB WHERE CveId in(CISAVULNS);

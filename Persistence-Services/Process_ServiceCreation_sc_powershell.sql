@@ -1,0 +1,28 @@
+        -- Converted from KQL to MySQL (heuristic conversion)
+        -- Date: 2025-09-13 00:40:46 UTC
+        -- Source file: KQL-main/Persistence-Services/Process_ServiceCreation_sc_powershell.kql
+        --
+        -- Original KQL (for reference):
+        -- -- // Title: Service Creation via sc.exe or PowerShell
+-- // Purpose: Identify attempts to create services using sc.exe or PowerShell
+-- // Scope: Windows 10/11, Server 2016+
+-- // Tables: DeviceProcessEvents
+-- // Tunables:
+-- //   - Adjust process filters (add other tools like cmd.exe)
+-- //   - Update keyword from "create" if other verbs are relevant
+-- // Author: Lokis-Lab  |  License: MIT
+-- // Last Updated: 2025-09-10
+
+-- DeviceProcessEvents
+-- | where InitiatingProcessFileName has_any ("sc.exe","powershell.exe")
+-- | where ProcessCommandLine contains "create"
+-- | project Timestamp, DeviceName, InitiatingProcessFileName, ProcessCommandLine, AccountName
+-- | order by Timestamp desc
+        --
+        -- Notes:
+        -- - Review the FROM table names and JSON field access (use JSON_EXTRACT for JSON columns).
+        -- - Replace /* <TABLE_OR_SUBQUERY> */ with the correct table or subquery if needed.
+        -- - Regex/contains translations use LIKE/REGEXP; adjust for performance as needed.
+        -- - Time windows: ago(7d) -> NOW() - INTERVAL 7 DAY, etc.
+        --
+SELECT * FROM DeviceProcessEvents WHERE InitiatingProcessFileName REGEXP '(sc\.exe|powershell\.exe)' AND ProcessCommandLine LIKE '%create%';

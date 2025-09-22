@@ -1,0 +1,47 @@
+        -- Converted from KQL to MySQL (heuristic conversion)
+        -- Date: 2025-09-13 00:40:46 UTC
+        -- Source file: KQL-main/Defender-Health-Reports/Defender_SecureConfig_BestPracticeReport.kql
+        --
+        -- Original KQL (for reference):
+        -- -- // Title: Defender Secure Configuration Best Practice Report
+-- // Purpose: Generate a health report of Defender for Endpoint configuration settings (tamper protection, AV, cloud protection, etc.),
+-- //          mapped to Microsoft best practice guidance.
+-- // Scope: Windows 10/11, Server 2016+
+-- // Tables: DeviceTvmSecureConfigurationAssessment
+-- // Tunables:
+-- //   - ConfigurationId set list can be expanded as new secure configs are added
+-- // Author: Lokis-Lab  |  License: MIT
+-- // Last Updated: 2025-09-10
+
+-- DeviceTvmSecureConfigurationAssessment
+-- | where ConfigurationId in ('scid-91', 'scid-2000', 'scid-2001', 'scid-2002', 'scid-2003', 'scid-2010', 'scid-2011', 'scid-2012', 'scid-2013', 'scid-2014', 'scid-2016')
+-- | extend Test = case(
+--     ConfigurationId == "scid-2000", "SensorEnabled",
+--     ConfigurationId == "scid-2001", "SensorDataCollection",
+--     ConfigurationId == "scid-2002", "ImpairedCommunications",
+--     ConfigurationId == "scid-2003", "TamperProtection",
+--     ConfigurationId == "scid-2010", "AntivirusEnabled",
+--     ConfigurationId == "scid-2011", "AntivirusSignatureVersion",
+--     ConfigurationId == "scid-2012", "RealtimeProtection",
+--     ConfigurationId == "scid-91", "BehaviorMonitoring",
+--     ConfigurationId == "scid-2013", "PUAProtection",
+--     ConfigurationId == "scid-2014", "AntivirusReporting",
+--     ConfigurationId == "scid-2016", "CloudProtection",
+--     "N/A"),
+--     Result = case(IsApplicable == 0, "N/A", IsCompliant == 1, "GOOD", "BAD")
+-- | extend packed = pack(Test, Result)
+-- | summarize Tests = make_bag(packed), DeviceName = any(DeviceName) by DeviceId
+-- | evaluate bag_unpack(Tests)
+        --
+        -- Notes:
+        -- - Review the FROM table names and JSON field access (use JSON_EXTRACT for JSON columns).
+        -- - Replace /* <TABLE_OR_SUBQUERY> */ with the correct table or subquery if needed.
+        -- - Regex/contains translations use LIKE/REGEXP; adjust for performance as needed.
+        -- - Time windows: ago(7d) -> NOW() - INTERVAL 7 DAY, etc.
+        --
+SELECT * FROM DeviceTvmSecureConfigurationAssessment WHERE ConfigurationId in ('scid-91', 'scid-2000', 'scid-2001', 'scid-2002', 'scid-2003', 'scid-2010', 'scid-2011', 'scid-2012', 'scid-2013', 'scid-2014', 'scid-2016');
+
+-- Aggregation equivalent (edit TABLE_OR_SUBQUERY as needed):
+SELECT DeviceId
+| evaluate bag_unpack(Tests), make_bag(packed) AS Tests, any(DeviceName) AS DeviceName FROM /* <TABLE_OR_SUBQUERY> */ GROUP BY DeviceId
+| evaluate bag_unpack(Tests);

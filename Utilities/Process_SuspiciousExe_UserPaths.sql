@@ -1,0 +1,28 @@
+        -- Converted from KQL to MySQL (heuristic conversion)
+        -- Date: 2025-09-13 00:40:46 UTC
+        -- Source file: KQL-main/Utilities/Process_SuspiciousExe_UserPaths.kql
+        --
+        -- Original KQL (for reference):
+        -- -- // Title: Suspicious Executables in User/Temp Paths (recent)
+-- // Purpose: Detect execution of .exe files from Temp, AppData, or Public user directories
+-- // Scope: Windows 10/11, Server 2016+
+-- // Tables: DeviceProcessEvents
+-- // Tunables:
+-- //   - Time range: adjust `ago()` if needed
+-- //   - Paths: expand beyond Temp/AppData/Public as required
+-- // Author: Lokis-Lab  |  License: MIT
+-- // Last Updated: 2025-09-10
+
+-- DeviceProcessEvents
+-- | where FileName endswith ".exe"
+-- | where FolderPath contains "\\Temp" or FolderPath contains "\\AppData" or FolderPath contains "\\Users\\Public"
+-- | project Timestamp, DeviceName, FileName, FolderPath, ProcessCommandLine, AccountName
+-- | order by Timestamp desc
+        --
+        -- Notes:
+        -- - Review the FROM table names and JSON field access (use JSON_EXTRACT for JSON columns).
+        -- - Replace /* <TABLE_OR_SUBQUERY> */ with the correct table or subquery if needed.
+        -- - Regex/contains translations use LIKE/REGEXP; adjust for performance as needed.
+        -- - Time windows: ago(7d) -> NOW() - INTERVAL 7 DAY, etc.
+        --
+SELECT * FROM DeviceProcessEvents WHERE FileName LIKE '%.exe' AND FolderPath LIKE '%\\Temp%' or FolderPath LIKE '%\\AppData%' or FolderPath LIKE '%\\Users\\Public%';

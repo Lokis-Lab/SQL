@@ -1,0 +1,70 @@
+        -- Converted from KQL to MySQL (heuristic conversion)
+        -- Date: 2025-09-13 00:40:46 UTC
+        -- Source file: KQL-main/Persistence-Registry/Registry_New_Changed_Keywords.kql
+        --
+        -- Original KQL (for reference):
+        -- -- // ===========================================================================
+-- //   Title: Registry Persistence Hunt (Noise-Reduced)
+-- //   Purpose: Surface registry key creation tied to common persistence paths OR
+-- //            suspicious script/LOLBIN terms in value data, while suppressing
+-- //            noisy OneDrive-related keys and processes.
+-- //   Data Source: DeviceRegistryEvents  (Microsoft 365 Defender Advanced Hunting)
+-- //   Time Window: huntWindow (default 30d)
+-- //
+-- //  Filters:
+-- //     - ActionType: RegistryKeyCreated   (toggle to include "RegistryValueSet")
+-- //     - Suspicious terms: suspicious_terms list (xor, iex, iwr, webclient, etc.)
+-- //     - Autorun/persistence paths: Run, RunOnce, Policies\Explorer\Run, Services\, Shell\Open\Command
+-- //     - Noise suppression:
+-- //         * Keys in noisy_keys (e.g., \MsBridge\Parameters, \l1vhlwf\Parameters)
+-- //         * Processes: OneDrive.exe, OneDriveStandaloneUpdater.exe, FileCoAuth.exe
+-- //
+-- //   Output Columns:
+-- //     Timestamp, DeviceName, ActionType, RegistryKey, RegistryValueName, RegistryValueData,
+-- //     InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine,
+-- //     InitiatingProcessParentFileName
+-- //
+-- //   Tuning Tips:
+-- //     - Add more excludes in noisy_keys or InitiatingProcessFileName as needed.
+-- //     - Swap ActionType filter to include RegistryValueSet to catch value writes.
+-- //     - Post-filter by account (e.g., exclude SYSTEM/LOCAL SERVICE) if noisy.
+-- //
+-- //   Requirements: Defender for Endpoint Advanced Hunting access.
+-- //   Version: v1.0   Updated: 2025-08-27
+-- //   Author: <your name/team>
+-- //   ========================================================================== 
+
+
+
+-- let huntWindow = 30d;
+-- let suspicious_terms = dynamic([
+--   "xor","new-item","invoke-expression","iex","sleep","invoke-",
+--   "system.net.httpwebrequest","webclient","iwr","curl"
+-- ]);
+-- // Add/keep any chatty paths here
+-- let noisy_keys = dynamic([
+--   @"\MsBridge\Parameters",
+--   @"\l1vhlwf\Parameters"      // your random-looking OneDrive key
+-- ]);
+-- DeviceRegistryEvents
+-- | where Timestamp > ago(huntWindow)
+-- | where ActionType in~ ("RegistryKeyCreated") //for seeing keys being set add: ,"RegistryValueSet"
+-- | where InitiatingProcessFileName !in~ ("OneDrive.exe","OneDriveStandaloneUpdater.exe","FileCoAuth.exe")
+-- | extend Key = tostring(RegistryKey), Val = tostring(RegistryValueData)
+-- | where Val has_any (suspicious_terms) or Key has_any (dynamic([
+--     @"\CurrentVersion\Run", @"\CurrentVersion\RunOnce",
+--     @"\Policies\Explorer\Run", @"\Services\", @"\Shell\Open\Command"
+-- ]))
+-- | where not(Key has_any (noisy_keys))                             // ← drop OneDrive noise
+-- | project Timestamp, DeviceName, ActionType, RegistryKey, RegistryValueName, RegistryValueData,
+--           InitiatingProcessAccountName, InitiatingProcessFileName,
+--           InitiatingProcessCommandLine, InitiatingProcessParentFileName
+-- | order by Timestamp desc
+        --
+        -- Notes:
+        -- - Review the FROM table names and JSON field access (use JSON_EXTRACT for JSON columns).
+        -- - Replace /* <TABLE_OR_SUBQUERY> */ with the correct table or subquery if needed.
+        -- - Regex/contains translations use LIKE/REGEXP; adjust for performance as needed.
+        -- - Time windows: ago(7d) -> NOW() - INTERVAL 7 DAY, etc.
+        --
+SELECT * FROM DeviceRegistryEvents WHERE Timestamp > NOW() AND ActionType in~ ("RegistryKeyCreated") //for seeing keys being set add: ,"RegistryValueSet" AND InitiatingProcessFileName !in~ ("OneDrive.exe","OneDriveStandaloneUpdater.exe","FileCoAuth.exe") AND Val REGEXP '.*' AND Key REGEXP '.*';

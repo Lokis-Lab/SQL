@@ -1,0 +1,39 @@
+        -- Converted from KQL to MySQL (heuristic conversion)
+        -- Date: 2025-09-13 00:40:46 UTC
+        -- Source file: KQL-main/Utilities/filename_search.kql
+        --
+        -- Original KQL (for reference):
+        -- -- // -----------------------------------------------------------------------------
+-- // Query Name: ProcessExecution_SearchByFileName
+-- // Description:
+-- //   Searches the DeviceProcessEvents table for processes where the FileName 
+-- //   matches the specified string (wildcard-friendly).
+-- //   In this example, it looks for any process with a FileName containing 
+-- //   "Senate.Leagis.Desktop". You can replace that value with any substring 
+-- //   or full file name to hunt for a specific executable.
+-- //
+-- // Use cases:
+-- //   - Track execution of custom or line-of-business applications
+-- //   - Investigate suspicious executables by name across the environment
+-- //   - Verify deployment or usage of known applications
+-- //
+-- // Output fields:
+-- //   Timestamp, DeviceName, FileName, ProcessId, InitiatingProcessFileName,
+-- //   FolderPath, AccountName
+-- //
+-- // Results are sorted with most recent executions first.
+-- // -----------------------------------------------------------------------------
+
+
+-- DeviceProcessEvents
+-- | where FileName like "Senate.Leagis.Desktop" //Change the file name inside the quotes. Doesn't have to be full file name
+-- | project Timestamp, DeviceName, FileName, ProcessId, InitiatingProcessFileName, FolderPath, AccountName
+-- | order by Timestamp desc
+        --
+        -- Notes:
+        -- - Review the FROM table names and JSON field access (use JSON_EXTRACT for JSON columns).
+        -- - Replace /* <TABLE_OR_SUBQUERY> */ with the correct table or subquery if needed.
+        -- - Regex/contains translations use LIKE/REGEXP; adjust for performance as needed.
+        -- - Time windows: ago(7d) -> NOW() - INTERVAL 7 DAY, etc.
+        --
+SELECT * FROM DeviceProcessEvents WHERE FileName like "Senate.Leagis.Desktop" //Change the file name inside the quotes. Doesn't have to be full file name;
