@@ -11,7 +11,6 @@
 -- //
 -- //   Filtering applied:
 -- //     - LogonType == "Network"
--- //     - DeviceName does not contain common prefixes ("ip-", "ep-", "it", "id", "inf")
 -- //     - Excludes machine accounts (AccountName ending in "$")
 -- //     - RemoteIP must be present (indicates a remote login)
 -- //     - ActionType == "LogonSuccess"
@@ -30,11 +29,6 @@
 
 -- DeviceLogonEvents
 -- | where LogonType == "Network"
--- | where DeviceName !contains "ip-" 
---        and DeviceName !contains "ep-" 
---        and DeviceName !contains "it" 
---        and DeviceName !contains "id" 
---        and DeviceName !contains "inf"
 -- | where not(AccountName endswith "$")                  // Exclude machine accounts ending in $
 -- | where isnotempty(RemoteIP)                           // Remote login = more likely NTLM
 -- | where ActionType == "LogonSuccess"                   // Focus on successful logins
@@ -48,4 +42,4 @@
         -- - Regex/contains translations use LIKE/REGEXP; adjust for performance as needed.
         -- - Time windows: ago(7d) -> NOW() - INTERVAL 7 DAY, etc.
         --
-SELECT * FROM DeviceLogonEvents WHERE LogonType == "Network" AND DeviceName NOT LIKE '%ip-%' AND not(AccountName LIKE '%$')                  // Exclude machine accounts ending in $ AND isnotempty(RemoteIP)                           // Remote login = more likely NTLM AND ActionType == "LogonSuccess"                   // Focus on successful logins AND isempty(AccountDomain)                         // No domain info = likely NTLM;
+SELECT * FROM DeviceLogonEvents WHERE LogonType == "Network" AND not(AccountName LIKE '%$')                  // Exclude machine accounts ending in $ AND isnotempty(RemoteIP)                           // Remote login = more likely NTLM AND ActionType == "LogonSuccess"                   // Focus on successful logins AND isempty(AccountDomain)                         // No domain info = likely NTLM;
